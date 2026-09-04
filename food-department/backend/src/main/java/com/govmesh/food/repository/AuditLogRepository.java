@@ -13,6 +13,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
 
     List<AuditLog> findTop10ByOrderByTimestampDesc();
 
+    List<AuditLog> findByApplicationIdOrderByTimestampDesc(String applicationId);
+
     @Query("SELECT a FROM AuditLog a WHERE " +
            "(:appId IS NULL OR :appId = '' OR LOWER(a.applicationId) LIKE LOWER(CONCAT('%', :appId, '%'))) AND " +
            "(:action IS NULL OR :action = '' OR LOWER(a.action) LIKE LOWER(CONCAT('%', :action, '%'))) AND " +

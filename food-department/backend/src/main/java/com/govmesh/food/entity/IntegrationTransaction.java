@@ -68,6 +68,34 @@ public class IntegrationTransaction {
     @Column(name = "raw_soap_response_xml", columnDefinition = "TEXT")
     private String rawSoapResponseXml;
 
+    // Phase 6 Reliability & Idempotency Fields
+    @Column(name = "idempotency_key")
+    private String idempotencyKey;
+
+    @Column(name = "attempt_count")
+    private Integer attemptCount = 1;
+
+    @Column(name = "max_attempts")
+    private Integer maxAttempts = 3;
+
+    @Column(name = "last_attempt_at")
+    private LocalDateTime lastAttemptAt;
+
+    @Column(name = "next_retry_at")
+    private LocalDateTime nextRetryAt;
+
+    @Column(name = "failure_code")
+    private String failureCode;
+
+    @Column(name = "failure_message", length = 1000)
+    private String failureMessage;
+
+    @Column(name = "retry_status")
+    private String retryStatus;
+
+    @Column(name = "is_duplicate")
+    private Boolean isDuplicate = false;
+
     public IntegrationTransaction() {}
 
     public IntegrationTransaction(Long id, String applicationId, String correlationId, String sourceDepartment, String targetDepartment, String operation, String sourceProtocol, String targetProtocol, String status, String consentStatus, String consentFailureReason, String consentId, LocalDateTime startedAt, LocalDateTime completedAt, String errorCode, String errorMessage, String rawSourceJson, String rawCanonicalJson, String rawSoapRequestXml, String rawSoapResponseXml) {
@@ -91,6 +119,39 @@ public class IntegrationTransaction {
         this.rawCanonicalJson = rawCanonicalJson;
         this.rawSoapRequestXml = rawSoapRequestXml;
         this.rawSoapResponseXml = rawSoapResponseXml;
+        this.retryStatus = status;
+    }
+
+    public IntegrationTransaction(Long id, String applicationId, String correlationId, String sourceDepartment, String targetDepartment, String operation, String sourceProtocol, String targetProtocol, String status, String consentStatus, String consentFailureReason, String consentId, LocalDateTime startedAt, LocalDateTime completedAt, String errorCode, String errorMessage, String rawSourceJson, String rawCanonicalJson, String rawSoapRequestXml, String rawSoapResponseXml, String idempotencyKey, Integer attemptCount, Integer maxAttempts, LocalDateTime lastAttemptAt, LocalDateTime nextRetryAt, String failureCode, String failureMessage, String retryStatus, Boolean isDuplicate) {
+        this.id = id;
+        this.applicationId = applicationId;
+        this.correlationId = correlationId;
+        this.sourceDepartment = sourceDepartment;
+        this.targetDepartment = targetDepartment;
+        this.operation = operation;
+        this.sourceProtocol = sourceProtocol;
+        this.targetProtocol = targetProtocol;
+        this.status = status;
+        this.consentStatus = consentStatus;
+        this.consentFailureReason = consentFailureReason;
+        this.consentId = consentId;
+        this.startedAt = startedAt;
+        this.completedAt = completedAt;
+        this.errorCode = errorCode;
+        this.errorMessage = errorMessage;
+        this.rawSourceJson = rawSourceJson;
+        this.rawCanonicalJson = rawCanonicalJson;
+        this.rawSoapRequestXml = rawSoapRequestXml;
+        this.rawSoapResponseXml = rawSoapResponseXml;
+        this.idempotencyKey = idempotencyKey;
+        this.attemptCount = attemptCount != null ? attemptCount : 1;
+        this.maxAttempts = maxAttempts != null ? maxAttempts : 3;
+        this.lastAttemptAt = lastAttemptAt;
+        this.nextRetryAt = nextRetryAt;
+        this.failureCode = failureCode;
+        this.failureMessage = failureMessage;
+        this.retryStatus = retryStatus != null ? retryStatus : status;
+        this.isDuplicate = isDuplicate != null ? isDuplicate : false;
     }
 
     public static Builder builder() {
@@ -157,6 +218,33 @@ public class IntegrationTransaction {
     public String getRawSoapResponseXml() { return rawSoapResponseXml; }
     public void setRawSoapResponseXml(String rawSoapResponseXml) { this.rawSoapResponseXml = rawSoapResponseXml; }
 
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
+
+    public Integer getAttemptCount() { return attemptCount; }
+    public void setAttemptCount(Integer attemptCount) { this.attemptCount = attemptCount; }
+
+    public Integer getMaxAttempts() { return maxAttempts; }
+    public void setMaxAttempts(Integer maxAttempts) { this.maxAttempts = maxAttempts; }
+
+    public LocalDateTime getLastAttemptAt() { return lastAttemptAt; }
+    public void setLastAttemptAt(LocalDateTime lastAttemptAt) { this.lastAttemptAt = lastAttemptAt; }
+
+    public LocalDateTime getNextRetryAt() { return nextRetryAt; }
+    public void setNextRetryAt(LocalDateTime nextRetryAt) { this.nextRetryAt = nextRetryAt; }
+
+    public String getFailureCode() { return failureCode; }
+    public void setFailureCode(String failureCode) { this.failureCode = failureCode; }
+
+    public String getFailureMessage() { return failureMessage; }
+    public void setFailureMessage(String failureMessage) { this.failureMessage = failureMessage; }
+
+    public String getRetryStatus() { return retryStatus; }
+    public void setRetryStatus(String retryStatus) { this.retryStatus = retryStatus; }
+
+    public Boolean getIsDuplicate() { return isDuplicate; }
+    public void setIsDuplicate(Boolean isDuplicate) { this.isDuplicate = isDuplicate; }
+
     public static class Builder {
         private Long id;
         private String applicationId;
@@ -178,6 +266,15 @@ public class IntegrationTransaction {
         private String rawCanonicalJson;
         private String rawSoapRequestXml;
         private String rawSoapResponseXml;
+        private String idempotencyKey;
+        private Integer attemptCount = 1;
+        private Integer maxAttempts = 3;
+        private LocalDateTime lastAttemptAt;
+        private LocalDateTime nextRetryAt;
+        private String failureCode;
+        private String failureMessage;
+        private String retryStatus;
+        private Boolean isDuplicate = false;
 
         public Builder id(Long id) { this.id = id; return this; }
         public Builder applicationId(String applicationId) { this.applicationId = applicationId; return this; }
@@ -199,9 +296,18 @@ public class IntegrationTransaction {
         public Builder rawCanonicalJson(String rawCanonicalJson) { this.rawCanonicalJson = rawCanonicalJson; return this; }
         public Builder rawSoapRequestXml(String rawSoapRequestXml) { this.rawSoapRequestXml = rawSoapRequestXml; return this; }
         public Builder rawSoapResponseXml(String rawSoapResponseXml) { this.rawSoapResponseXml = rawSoapResponseXml; return this; }
+        public Builder idempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; return this; }
+        public Builder attemptCount(Integer attemptCount) { this.attemptCount = attemptCount; return this; }
+        public Builder maxAttempts(Integer maxAttempts) { this.maxAttempts = maxAttempts; return this; }
+        public Builder lastAttemptAt(LocalDateTime lastAttemptAt) { this.lastAttemptAt = lastAttemptAt; return this; }
+        public Builder nextRetryAt(LocalDateTime nextRetryAt) { this.nextRetryAt = nextRetryAt; return this; }
+        public Builder failureCode(String failureCode) { this.failureCode = failureCode; return this; }
+        public Builder failureMessage(String failureMessage) { this.failureMessage = failureMessage; return this; }
+        public Builder retryStatus(String retryStatus) { this.retryStatus = retryStatus; return this; }
+        public Builder isDuplicate(Boolean isDuplicate) { this.isDuplicate = isDuplicate; return this; }
 
         public IntegrationTransaction build() {
-            return new IntegrationTransaction(id, applicationId, correlationId, sourceDepartment, targetDepartment, operation, sourceProtocol, targetProtocol, status, consentStatus, consentFailureReason, consentId, startedAt, completedAt, errorCode, errorMessage, rawSourceJson, rawCanonicalJson, rawSoapRequestXml, rawSoapResponseXml);
+            return new IntegrationTransaction(id, applicationId, correlationId, sourceDepartment, targetDepartment, operation, sourceProtocol, targetProtocol, status, consentStatus, consentFailureReason, consentId, startedAt, completedAt, errorCode, errorMessage, rawSourceJson, rawCanonicalJson, rawSoapRequestXml, rawSoapResponseXml, idempotencyKey, attemptCount, maxAttempts, lastAttemptAt, nextRetryAt, failureCode, failureMessage, retryStatus, isDuplicate);
         }
     }
 }

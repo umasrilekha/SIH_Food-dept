@@ -1,5 +1,6 @@
 package com.govmesh.food.govmesh.adapter;
 
+import com.govmesh.food.govmesh.config.SoapSimulationConfig;
 import com.govmesh.food.govmesh.dto.CanonicalAddressUpdateRequest;
 import com.govmesh.food.govmesh.dto.CanonicalAddressUpdateResponse;
 import com.govmesh.food.govmesh.mapper.FoodDepartmentSchemaMapper;
@@ -15,13 +16,44 @@ public class FoodDepartmentAdapter {
 
     private final FoodDepartmentSchemaMapper schemaMapper;
     private final WebServiceTemplate webServiceTemplate;
+    private final SoapSimulationConfig simulationConfig;
 
     public FoodDepartmentAdapter(FoodDepartmentSchemaMapper schemaMapper) {
+        this(schemaMapper, new SoapSimulationConfig("SUCCESS"));
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public FoodDepartmentAdapter(FoodDepartmentSchemaMapper schemaMapper, SoapSimulationConfig simulationConfig) {
         this.schemaMapper = schemaMapper;
+        this.simulationConfig = simulationConfig;
         this.webServiceTemplate = createWebServiceTemplate();
     }
 
     public CanonicalAddressUpdateResponse sendAddressUpdate(CanonicalAddressUpdateRequest canonicalRequest, String soapEndpointUrl) {
+        // Dev/Demo failure simulation check
+        if (simulationConfig != null) {
+            SoapSimulationConfig.SimulationMode mode = simulationConfig.getMode();
+            if (mode == SoapSimulationConfig.SimulationMode.TIMEOUT) {
+                return CanonicalAddressUpdateResponse.builder()
+                        .applicationId(canonicalRequest.getApplicationId())
+                        .status("FAILED")
+                        .message("Food Department SOAP service timed out while waiting for response.")
+                        .correlationId(canonicalRequest.getCorrelationId())
+                        .targetDepartment("FOOD")
+                        .errorCode("TIMEOUT")
+                        .build();
+            } else if (mode == SoapSimulationConfig.SimulationMode.SERVICE_UNAVAILABLE) {
+                return CanonicalAddressUpdateResponse.builder()
+                        .applicationId(canonicalRequest.getApplicationId())
+                        .status("FAILED")
+                        .message("Food Department SOAP service is temporarily unavailable.")
+                        .correlationId(canonicalRequest.getCorrelationId())
+                        .targetDepartment("FOOD")
+                        .errorCode("SERVICE_UNAVAILABLE")
+                        .build();
+            }
+        }
+
         UpdateRationAddress soapRequest = schemaMapper.mapCanonicalToSoapRequest(canonicalRequest);
 
         try {

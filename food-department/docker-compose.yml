@@ -12,6 +12,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/00_schema.sql
       - ./database/seed/seed_data.sql:/docker-entrypoint-initdb.d/01_seed.sql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d food_department_db"]

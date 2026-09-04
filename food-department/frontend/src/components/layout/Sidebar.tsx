@@ -10,7 +10,8 @@ import {
   ClipboardList,
   Bell,
   Activity,
-  UserCheck
+  UserCheck,
+  RefreshCw
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -20,6 +21,7 @@ export const Sidebar: React.FC = () => {
     { to: '/ration-records', label: 'Ration Records', icon: FileText },
     { to: '/applications', label: 'Applications Search', icon: FolderKanban },
     { to: '/integration', label: 'Interoperability Monitor', icon: Network },
+    { to: '/integration/retries', label: 'Failed & Retries', icon: RefreshCw },
     { to: '/consent', label: 'Consent & Compliance', icon: ShieldCheck },
     { to: '/audit-logs', label: 'Audit Logs', icon: ClipboardList },
     { to: '/notifications', label: 'Notifications Feed', icon: Bell },

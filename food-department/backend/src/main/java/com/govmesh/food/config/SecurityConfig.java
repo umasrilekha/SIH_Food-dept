@@ -1,6 +1,8 @@
 package com.govmesh.food.config;
 
 import com.govmesh.food.security.JwtAuthFilter;
+import com.govmesh.food.security.ServiceAuthFilter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -23,6 +25,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -31,10 +34,20 @@ public class SecurityConfig {
 
     private final UserDetailsService userDetailsService;
     private final JwtAuthFilter jwtAuthFilter;
+    private final ServiceAuthFilter serviceAuthFilter;
 
-    public SecurityConfig(UserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,http://localhost:8081}")
+    private String allowedOriginsConfig;
+
+    @Value("${spring.h2.console.enabled:true}")
+    private boolean h2ConsoleEnabled;
+
+    public SecurityConfig(UserDetailsService userDetailsService,
+                          JwtAuthFilter jwtAuthFilter,
+                          ServiceAuthFilter serviceAuthFilter) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthFilter = jwtAuthFilter;
+        this.serviceAuthFilter = serviceAuthFilter;
     }
 
     @Bean
@@ -58,9 +71,21 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        List<String> origins = Arrays.stream(allowedOriginsConfig.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "X-GovMesh-Service-Id",
+                "X-GovMesh-API-Key",
+                "X-GovMesh-Service-Token"
+        ));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
@@ -74,17 +99,25 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)
             .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login").permitAll()
-                .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/ws/**").permitAll()
-                .requestMatchers("/api/govmesh/**").permitAll()
-                .requestMatchers("/api/consent/**").permitAll()
-                .requestMatchers("/api/**").authenticated()
-                .anyRequest().permitAll()
-            );
+            .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/api/auth/login").permitAll();
+                auth.requestMatchers("/ws/**").permitAll();
+                auth.requestMatchers("/api/consent/**").permitAll();
+
+                if (h2ConsoleEnabled) {
+                    auth.requestMatchers("/h2-console/**").permitAll();
+                } else {
+                    auth.requestMatchers("/h2-console/**").denyAll();
+                }
+
+                // Inter-department API & protected officer APIs require valid Service or Officer Authentication
+                auth.requestMatchers("/api/govmesh/**").authenticated();
+                auth.requestMatchers("/api/**").authenticated();
+                auth.anyRequest().permitAll();
+            });
 
         http.authenticationProvider(authenticationProvider());
+        http.addFilterBefore(serviceAuthFilter, UsernamePasswordAuthenticationFilter.class);
         http.addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

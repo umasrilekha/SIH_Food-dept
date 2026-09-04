@@ -12,6 +12,7 @@ import { RationRecordDetailPage } from '../pages/RationRecordDetailPage';
 import { ApplicationDetailPage } from '../pages/ApplicationDetailPage';
 import { IntegrationMonitorPage } from '../pages/IntegrationMonitorPage';
 import { IntegrationTracePage } from '../pages/IntegrationTracePage';
+import { FailedAndRetryRequestsPage } from '../pages/FailedAndRetryRequestsPage';
 import { ConsentListPage } from '../pages/ConsentListPage';
 import { ConsentDetailPage } from '../pages/ConsentDetailPage';
 import { AuditLogsPage } from '../pages/AuditLogsPage';
@@ -39,6 +40,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="/applications" element={<RequestsPage />} />
           <Route path="/applications/:id" element={<ApplicationDetailPage />} />
           <Route path="/integration" element={<IntegrationMonitorPage />} />
+          <Route path="/integration/retries" element={<FailedAndRetryRequestsPage />} />
           <Route path="/integration/:correlationId" element={<IntegrationTracePage />} />
           <Route path="/consent" element={<ConsentListPage />} />
           <Route path="/consent/:consentId" element={<ConsentDetailPage />} />

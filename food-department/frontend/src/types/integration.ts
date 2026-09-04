@@ -7,7 +7,7 @@ export interface IntegrationTransaction {
   operation: string;
   sourceProtocol: string;
   targetProtocol: string;
-  status: 'RECEIVED' | 'TRANSFORMING' | 'SENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'BLOCKED' | string;
+  status: 'RECEIVED' | 'TRANSFORMING' | 'SENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'BLOCKED' | 'RETRYING' | 'FINAL_FAILURE' | string;
   consentStatus?: 'ALLOWED' | 'BLOCKED' | string;
   consentFailureReason?: string;
   consentId?: string;
@@ -19,6 +19,30 @@ export interface IntegrationTransaction {
   rawCanonicalJson?: string;
   rawSoapRequestXml?: string;
   rawSoapResponseXml?: string;
+
+  // Phase 6 Reliability & Retry Fields
+  idempotencyKey?: string;
+  attemptCount?: number;
+  maxAttempts?: number;
+  lastAttemptAt?: string;
+  nextRetryAt?: string;
+  failureCode?: string;
+  failureMessage?: string;
+  retryStatus?: string;
+  isDuplicate?: boolean;
+}
+
+export interface IntegrationAttempt {
+  id: number;
+  correlationId: string;
+  applicationId: string;
+  idempotencyKey?: string;
+  attemptNumber: number;
+  protocol: string;
+  status: 'SUCCESS' | 'FAILED' | 'TIMEOUT' | 'SERVICE_UNAVAILABLE' | 'BLOCKED' | string;
+  failureCode?: string;
+  failureMessage?: string;
+  attemptAt: string;
 }
 
 export interface CanonicalAddressUpdateRequest {
@@ -26,6 +50,7 @@ export interface CanonicalAddressUpdateRequest {
   sourceDepartment: string;
   targetDepartment: string;
   correlationId: string;
+  idempotencyKey?: string;
   purpose?: string;
   requestedFields?: string[];
   citizen: {
@@ -48,7 +73,7 @@ export interface CanonicalAddressUpdateRequest {
 
 export interface CanonicalAddressUpdateResponse {
   applicationId: string;
-  status: 'SUCCESS' | 'FAILED' | 'BLOCKED' | string;
+  status: 'SUCCESS' | 'FAILED' | 'BLOCKED' | 'RETRYING' | 'PROCESSING' | string;
   message: string;
   correlationId: string;
   targetDepartment: string;

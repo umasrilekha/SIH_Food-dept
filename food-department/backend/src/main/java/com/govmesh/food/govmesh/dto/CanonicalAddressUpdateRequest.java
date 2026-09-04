@@ -7,6 +7,7 @@ public class CanonicalAddressUpdateRequest {
     private String sourceDepartment;
     private String targetDepartment;
     private String correlationId;
+    private String idempotencyKey;
     private String purpose;
     private List<String> requestedFields;
     private CitizenInfo citizen;
@@ -48,6 +49,9 @@ public class CanonicalAddressUpdateRequest {
 
     public String getCorrelationId() { return correlationId; }
     public void setCorrelationId(String correlationId) { this.correlationId = correlationId; }
+
+    public String getIdempotencyKey() { return idempotencyKey; }
+    public void setIdempotencyKey(String idempotencyKey) { this.idempotencyKey = idempotencyKey; }
 
     public String getPurpose() { return purpose; }
     public void setPurpose(String purpose) { this.purpose = purpose; }

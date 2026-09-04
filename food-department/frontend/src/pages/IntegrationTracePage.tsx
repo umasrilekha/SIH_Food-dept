@@ -1,17 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { govmeshService } from '../services/govmeshService';
-import { IntegrationTransaction } from '../types/integration';
+import { IntegrationTransaction, IntegrationAttempt } from '../types/integration';
 import { Breadcrumb } from '../components/common/Breadcrumb';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { LoadingState } from '../components/common/LoadingState';
 import { ErrorState } from '../components/common/ErrorState';
-import { ArrowLeft, Network, ChevronDown, ChevronUp, Code, ArrowDown, ShieldCheck, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
+import { formatDate } from '../utils/formatters';
+import { ArrowLeft, Network, ChevronDown, ChevronUp, Code, ArrowDown, ShieldCheck, CheckCircle2, XCircle, AlertTriangle, RefreshCw, Copy, Layers } from 'lucide-react';
 
 export const IntegrationTracePage: React.FC = () => {
   const { correlationId } = useParams<{ correlationId: string }>();
 
   const [transaction, setTransaction] = useState<IntegrationTransaction | null>(null);
+  const [attempts, setAttempts] = useState<IntegrationAttempt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showTransformation, setShowTransformation] = useState(false);
@@ -24,6 +26,8 @@ export const IntegrationTracePage: React.FC = () => {
       try {
         const data = await govmeshService.getTransactionByCorrelationId(correlationId);
         setTransaction(data);
+        const attemptData = await govmeshService.getAttempts(correlationId);
+        setAttempts(attemptData);
       } catch (err: any) {
         setError(err?.response?.data?.message || 'Failed to fetch integration transaction trace.');
       } finally {
@@ -38,6 +42,7 @@ export const IntegrationTracePage: React.FC = () => {
 
   const isBlocked = transaction.status === 'BLOCKED' || transaction.consentStatus === 'BLOCKED';
   const failureReason = transaction.consentFailureReason || transaction.errorCode || 'CONSENT_DENIED';
+  const idempotencyKey = transaction.idempotencyKey || `${transaction.applicationId}:ADDRESS_UPDATE`;
 
   return (
     <div className="space-y-4 text-xs">
@@ -57,7 +62,7 @@ export const IntegrationTracePage: React.FC = () => {
               <Network className="w-5 h-5 text-blue-900" />
               INTEROPERABILITY TRACE SPECIFICATION
             </h1>
-            <StatusBadge status={transaction.status} />
+            <StatusBadge status={transaction.retryStatus || transaction.status} />
           </div>
           <p className="text-xs text-slate-600 mt-0.5 font-mono">
             Correlation ID: <strong className="text-slate-900 font-bold">{transaction.correlationId}</strong> • Application: <strong className="text-slate-900 font-bold">{transaction.applicationId}</strong>
@@ -71,6 +76,115 @@ export const IntegrationTracePage: React.FC = () => {
           <ArrowLeft className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
           Back to Monitor
         </Link>
+      </div>
+
+      {/* PHASE 6 RELIABILITY SUMMARY PANEL */}
+      <div className="bg-slate-900 text-white rounded border border-slate-800 p-4 space-y-3 shadow-xs font-mono">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="w-4 h-4 text-amber-400" />
+            <h2 className="text-xs font-bold text-amber-300 uppercase tracking-wide">
+              RELIABILITY & IDEMPOTENCY SPECIFICATION
+            </h2>
+          </div>
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 uppercase">
+            STABLE IDEMPOTENCY KEY
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+          <div className="p-2.5 bg-slate-950 rounded border border-slate-800">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Idempotency Key</span>
+            <span className="text-amber-300 font-extrabold text-xs block truncate mt-0.5">{idempotencyKey}</span>
+          </div>
+
+          <div className="p-2.5 bg-slate-950 rounded border border-slate-800">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Attempt Count</span>
+            <span className="text-white font-extrabold text-sm block mt-0.5">
+              {transaction.attemptCount || 1} / {transaction.maxAttempts || 3}
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-slate-950 rounded border border-slate-800">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Retry Status</span>
+            <span className="block mt-0.5">
+              <StatusBadge status={transaction.retryStatus || transaction.status} />
+            </span>
+          </div>
+
+          <div className="p-2.5 bg-slate-950 rounded border border-slate-800">
+            <span className="text-[10px] text-slate-400 font-bold uppercase block">Next Retry Scheduled</span>
+            <span className="text-amber-400 font-bold text-xs block mt-0.5">
+              {transaction.nextRetryAt ? formatDate(transaction.nextRetryAt) : 'None (Completed/Final)'}
+            </span>
+          </div>
+        </div>
+
+        {transaction.failureMessage && (
+          <div className="p-2.5 bg-red-950/60 border border-red-800 text-red-200 rounded text-[11px] flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <span>
+              <strong>Last Error:</strong> [{transaction.failureCode || transaction.errorCode}] {transaction.failureMessage || transaction.errorMessage}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* ATTEMPT HISTORY TABLE */}
+      <div className="bg-white rounded border border-slate-300 shadow-xs p-4 space-y-3">
+        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+          <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wide flex items-center gap-1.5">
+            <Layers className="w-4 h-4 text-blue-900" />
+            COMPLETE ATTEMPT HISTORY & EXECUTION LOG
+          </h2>
+          <span className="text-[10px] font-mono text-slate-500">
+            Total Attempts: {attempts.length > 0 ? attempts.length : (transaction.attemptCount || 1)}
+          </span>
+        </div>
+
+        {attempts.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-100 text-slate-700 uppercase font-bold text-[10px] border-b border-slate-300">
+                  <th className="py-2 px-3 border-r border-slate-200">Attempt #</th>
+                  <th className="py-2 px-3 border-r border-slate-200">Timestamp</th>
+                  <th className="py-2 px-3 border-r border-slate-200">Protocol</th>
+                  <th className="py-2 px-3 border-r border-slate-200">Status</th>
+                  <th className="py-2 px-3">Failure Reason</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200 text-slate-800 font-medium">
+                {attempts.map((att) => (
+                  <tr key={att.id} className="hover:bg-slate-50">
+                    <td className="py-2 px-3 font-bold font-mono text-blue-950">#{att.attemptNumber}</td>
+                    <td className="py-2 px-3 font-mono text-slate-600">{formatDate(att.attemptAt)}</td>
+                    <td className="py-2 px-3 font-mono">{att.protocol || 'SOAP/XML'}</td>
+                    <td className="py-2 px-3">
+                      <StatusBadge status={att.status} />
+                    </td>
+                    <td className="py-2 px-3 text-slate-600 font-mono text-[11px]">
+                      {att.failureCode ? (
+                        <span className="px-1 py-0.5 bg-red-50 text-red-900 border border-red-200 rounded font-bold mr-1">
+                          {att.failureCode}
+                        </span>
+                      ) : null}
+                      {att.failureMessage || 'N/A'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded text-slate-700 font-mono text-xs flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-bold">Attempt #1:</span>
+              <span>Executed at {formatDate(transaction.lastAttemptAt || transaction.startedAt)}</span>
+            </div>
+            <StatusBadge status={transaction.retryStatus || transaction.status} />
+          </div>
+        )}
       </div>
 
       {/* Visual Interoperability Trace Pipeline */}
@@ -184,14 +298,13 @@ export const IntegrationTracePage: React.FC = () => {
             </div>
           </div>
 
-          {/* IF BLOCKED: SHOW BIG VISUAL WARNING "FOOD DEPARTMENT NOT CONTACTED" */}
+          {/* IF BLOCKED: SHOW WARNING "FOOD DEPARTMENT NOT CONTACTED" */}
           {isBlocked ? (
             <>
               <div className="flex justify-center -my-1">
                 <ArrowDown className="w-4 h-4 text-red-600" />
               </div>
 
-              {/* REQUEST BLOCKED STEP */}
               <div className="p-3.5 bg-red-100 border-2 border-red-500 rounded text-red-950 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -206,7 +319,7 @@ export const IntegrationTracePage: React.FC = () => {
                 </div>
                 <p className="text-xs font-semibold text-red-900">
                   Consent verification failed with reason: <strong className="font-mono underline">{failureReason}</strong>.
-                  Data transmission was halted immediately before reaching the downstream target department.
+                  Data transmission was halted immediately before reaching the downstream target department. No retries scheduled.
                 </p>
               </div>
 
@@ -214,7 +327,6 @@ export const IntegrationTracePage: React.FC = () => {
                 <ArrowDown className="w-4 h-4 text-slate-400" />
               </div>
 
-              {/* STEP 4: TARGET FOOD DEPARTMENT - NOT CONTACTED */}
               <div className="p-4 bg-slate-100 border-2 border-dashed border-slate-400 rounded text-slate-600 relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -236,11 +348,33 @@ export const IntegrationTracePage: React.FC = () => {
                 <ArrowDown className="w-4 h-4 text-blue-900" />
               </div>
 
-              {/* STEP 4: CANONICAL MODEL */}
+              {/* STEP 4: IDEMPOTENCY GATE */}
+              <div className="p-3 bg-indigo-50/50 border border-indigo-200 rounded relative">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-full bg-indigo-900 text-white font-bold flex items-center justify-center text-[10px]">4</span>
+                    <div>
+                      <span className="font-bold text-indigo-950 uppercase text-[11px]">IDEMPOTENCY & DUPLICATE CHECK GATE</span>
+                      <span className="text-[10px] text-indigo-800 font-mono block">
+                        Idempotency Key: <strong>{idempotencyKey}</strong>
+                      </span>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 uppercase font-mono">
+                    ✓ CHECK PASSED
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex justify-center -my-1">
+                <ArrowDown className="w-4 h-4 text-blue-900" />
+              </div>
+
+              {/* STEP 5: CANONICAL MODEL */}
               <div className="p-3 bg-blue-50/50 border border-blue-200 rounded relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-900 text-white font-bold flex items-center justify-center text-[10px]">4</span>
+                    <span className="w-6 h-6 rounded-full bg-blue-900 text-white font-bold flex items-center justify-center text-[10px]">5</span>
                     <div>
                       <span className="font-bold text-blue-950 uppercase text-[11px]">GOVMESH CANONICAL MODEL</span>
                       <span className="text-[10px] text-blue-800 font-mono block">Normalized GovMesh Data Structure</span>
@@ -256,11 +390,11 @@ export const IntegrationTracePage: React.FC = () => {
                 <ArrowDown className="w-4 h-4 text-blue-900" />
               </div>
 
-              {/* STEP 5: SCHEMA MAPPING */}
+              {/* STEP 6: SCHEMA MAPPING */}
               <div className="p-3 bg-amber-50/40 border border-amber-300 rounded relative space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-amber-800 text-white font-bold flex items-center justify-center text-[10px]">5</span>
+                    <span className="w-6 h-6 rounded-full bg-amber-800 text-white font-bold flex items-center justify-center text-[10px]">6</span>
                     <div>
                       <span className="font-bold text-amber-950 uppercase text-[11px]">EXPLICIT SCHEMA MAPPING LAYER</span>
                       <span className="text-[10px] text-amber-900 font-mono block">GovMesh Canonical ➔ Food Department Target Schema</span>
@@ -283,17 +417,19 @@ export const IntegrationTracePage: React.FC = () => {
                 <ArrowDown className="w-4 h-4 text-blue-900" />
               </div>
 
-              {/* STEP 6: TARGET FOOD DEPARTMENT SOAP SERVICE */}
+              {/* STEP 7: TARGET FOOD DEPARTMENT SOAP SERVICE */}
               <div className="p-3 bg-slate-50 border border-slate-300 rounded relative">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-[10px]">6</span>
+                    <span className="w-6 h-6 rounded-full bg-slate-900 text-white font-bold flex items-center justify-center text-[10px]">7</span>
                     <div>
                       <span className="font-bold text-slate-900 uppercase text-[11px]">FOOD DEPARTMENT SOAP / XML SERVICE</span>
-                      <span className="text-[10px] text-slate-500 font-mono block">Department: {transaction.targetDepartment} • Protocol: SOAP / XML (/ws)</span>
+                      <span className="text-[10px] text-slate-500 font-mono block">
+                        Target Endpoint: /ws (UpdateRationAddress) • Attempt: {transaction.attemptCount || 1}/{transaction.maxAttempts || 3}
+                      </span>
                     </div>
                   </div>
-                  <StatusBadge status={transaction.status} />
+                  <StatusBadge status={transaction.retryStatus || transaction.status} />
                 </div>
               </div>
             </>
@@ -308,7 +444,7 @@ export const IntegrationTracePage: React.FC = () => {
           >
             <span className="flex items-center gap-1.5">
               <Code className="w-4 h-4 text-slate-600" />
-              View Payload Specifications (REST JSON ➔ Consent Verification ➔ SOAP XML)
+              View Payload Specifications & Schema Mappings
             </span>
             {showTransformation ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -323,6 +459,7 @@ export const IntegrationTracePage: React.FC = () => {
   sourceDepartment: transaction.sourceDepartment,
   targetDepartment: transaction.targetDepartment,
   correlationId: transaction.correlationId,
+  idempotencyKey: idempotencyKey,
   purpose: "RATION_ADDRESS_UPDATE",
   consent: { id: transaction.consentId || "CONSENT-00124" },
   citizen: {
@@ -340,27 +477,15 @@ export const IntegrationTracePage: React.FC = () => {
               </div>
 
               <div>
-                <span className="text-purple-400 font-bold text-[10px] uppercase block mb-1">2. CONSENT GATEKEEPER DECISION OBJECT</span>
+                <span className="text-purple-400 font-bold text-[10px] uppercase block mb-1">2. CONSENT & IDEMPOTENCY DECISION OBJECT</span>
                 <pre className="p-2 bg-slate-950 rounded border border-slate-800 text-purple-300 overflow-x-auto">
 {JSON.stringify({
   status: isBlocked ? "BLOCKED" : "ALLOWED",
-  reason: isBlocked ? failureReason : "CONSENT_VALIDATED",
+  idempotencyKey: idempotencyKey,
+  attemptCount: transaction.attemptCount || 1,
+  maxAttempts: transaction.maxAttempts || 3,
+  retryStatus: transaction.retryStatus || transaction.status,
   consentId: transaction.consentId || "CONSENT-00124",
-  purpose: "RATION_ADDRESS_UPDATE",
-  requestedFields: [
-    "citizen.name",
-    "citizen.address",
-    "citizen.address.district",
-    "citizen.address.taluka",
-    "verification.status"
-  ],
-  allowedFields: [
-    "citizen.name",
-    "citizen.address",
-    "citizen.address.district",
-    "citizen.address.taluka",
-    "verification.status"
-  ],
   timestamp: transaction.startedAt
 }, null, 2)}
                 </pre>

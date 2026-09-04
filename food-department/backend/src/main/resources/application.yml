@@ -3,17 +3,19 @@ server:
   servlet:
     context-path: /
 
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,http://localhost:8081}
+
 spring:
   application:
     name: food-department-backend
   datasource:
-    url: ${DATABASE_URL:jdbc:h2:mem:food_department_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}
-    driver-class-name: ${DATABASE_DRIVER:org.h2.Driver}
-    username: ${DATABASE_USERNAME:sa}
-    password: ${DATABASE_PASSWORD:}
+    url: ${DATABASE_URL:${SPRING_DATASOURCE_URL:jdbc:h2:mem:food_department_db;DB_CLOSE_DELAY=-1;MODE=PostgreSQL}}
+    username: ${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:sa}}
+    password: ${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}
   h2:
     console:
-      enabled: true
+      enabled: ${ENABLE_H2_CONSOLE:true}
       path: /h2-console
   jpa:
     hibernate:
@@ -22,12 +24,16 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.H2Dialect}
 
 govmesh:
   jwt:
     secret: ${JWT_SECRET:GovMeshFoodDept2026SuperSecretKeyDepartment2Maharashtra2026}
     expiration-ms: ${JWT_EXPIRATION_MS:1800000} # 30 Minutes
+  service:
+    api-key: ${GOVMESH_SERVICE_API_KEY:GovMeshSecretServiceKey2026InterDepartment}
+    jwt:
+      secret: ${GOVMESH_SERVICE_JWT_SECRET:GovMeshServiceAccountSecretKey2026SuperSecret}
+      expiration-ms: ${GOVMESH_SERVICE_JWT_EXPIRATION_MS:86400000}
 
 logging:
   level:

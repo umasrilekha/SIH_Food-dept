@@ -298,6 +298,26 @@ public class ApplicationService {
                     return new SoapServiceException("APPLICATION_NOT_FOUND", "Application not found with Application ID: " + command.getApplicationId());
                 });
 
+        // Food Department Endpoint Idempotency Check:
+        // If application is already APPROVED and address matches, return previous result without second business update!
+        if ("APPROVED".equalsIgnoreCase(app.getCurrentStatus()) && command.getAddress() != null && command.getAddress().equals(app.getRequestedAddress())) {
+            auditLogRepository.save(AuditLog.builder()
+                    .timestamp(LocalDateTime.now())
+                    .applicationId(command.getApplicationId())
+                    .officerId(null)
+                    .action("DUPLICATE_SOAP_REQUEST_DETECTED")
+                    .result("SUCCESS")
+                    .description("Food SOAP endpoint detected duplicate operation for " + app.getApplicationId() + ". Returning previous successful result without duplicate database update. (CorrelationId: " + corrId + ")")
+                    .build());
+
+            return SoapResultDTO.builder()
+                    .applicationId(app.getApplicationId())
+                    .status("SUCCESS")
+                    .message("Ration address update already processed (Food Department Idempotent Response)")
+                    .correlationId(corrId)
+                    .build();
+        }
+
         // Ration Card No Mismatch Check
         if (command.getRationCardNo() == null || !app.getRationCardNo().replace("-", "").equalsIgnoreCase(command.getRationCardNo().replace("-", ""))) {
             auditLogRepository.save(AuditLog.builder()
