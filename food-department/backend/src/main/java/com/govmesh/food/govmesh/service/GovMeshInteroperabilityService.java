@@ -12,6 +12,7 @@ import com.govmesh.food.govmesh.router.IntegrationRouter;
 import com.govmesh.food.repository.AuditLogRepository;
 import com.govmesh.food.repository.IntegrationAttemptRepository;
 import com.govmesh.food.repository.IntegrationTransactionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,6 +38,7 @@ public class GovMeshInteroperabilityService {
         this(integrationRouter, transactionRepository, null, auditLogRepository, consentValidationService);
     }
 
+    @Autowired
     public GovMeshInteroperabilityService(IntegrationRouter integrationRouter,
                                          IntegrationTransactionRepository transactionRepository,
                                          IntegrationAttemptRepository attemptRepository,
