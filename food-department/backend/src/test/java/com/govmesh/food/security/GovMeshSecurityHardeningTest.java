@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.govmesh.food.dto.AuthDTOs.LoginRequest;
 import com.govmesh.food.entity.Consent;
 import com.govmesh.food.entity.User;
+import com.govmesh.food.govmesh.adapter.FoodDepartmentAdapter;
 import com.govmesh.food.govmesh.dto.CanonicalAddressUpdateRequest;
 import com.govmesh.food.govmesh.dto.CanonicalAddressUpdateResponse;
+import com.govmesh.food.govmesh.mapper.FoodDepartmentSchemaMapper;
 import com.govmesh.food.repository.ConsentRepository;
 import com.govmesh.food.repository.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -14,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,6 +41,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 public class GovMeshSecurityHardeningTest {
+
+    @TestConfiguration
+    static class TestAdapterConfig {
+        @Bean
+        @Primary
+        public FoodDepartmentAdapter foodDepartmentAdapter(FoodDepartmentSchemaMapper schemaMapper) {
+            return new FoodDepartmentAdapter(schemaMapper) {
+                @Override
+                public CanonicalAddressUpdateResponse sendAddressUpdate(CanonicalAddressUpdateRequest canonicalRequest, String soapEndpointUrl) {
+                    return CanonicalAddressUpdateResponse.builder()
+                            .applicationId(canonicalRequest != null ? canonicalRequest.getApplicationId() : "GM-SEC-06")
+                            .status("SUCCESS")
+                            .message("Address update accepted by Food Department")
+                            .correlationId(canonicalRequest != null ? canonicalRequest.getCorrelationId() : "CORR-SEC-06")
+                            .targetDepartment("FOOD")
+                            .build();
+                }
+            };
+        }
+    }
 
     @Autowired
     private MockMvc mockMvc;
